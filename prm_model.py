@@ -54,7 +54,7 @@ class PRMModel(nn.Module):
         seq_length: (B,) int
         Returns: (B, T) softmax scores masked by seq_length
         """
-        B, T = itm_spar.shape[:2]
+        B, T, _ = itm_spar.shape
 
         # Sparse embedding → concat with dense
         spar_emb = self.emb_mtx(itm_spar).view(B, T, -1)       # (B, T, spar_num * eb_dim)
