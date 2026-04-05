@@ -66,9 +66,6 @@ Both implement the same PRM architecture (embedding + position encoding + Transf
                             v
               +-------------------------------+
               |        Output Head            |
-              |  BatchNorm1d(64)              |
-              |  Linear(64 -> 64) + ReLU      |
-              |  Dropout                      |
               |  Linear(64 -> 1)              |
               +-------------------------------+
                             |
