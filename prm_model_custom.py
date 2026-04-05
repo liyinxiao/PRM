@@ -118,11 +118,8 @@ class PRMModel(nn.Module):
         self.ffn_layers = nn.ModuleList(
             [PositionwiseFeedForward(d_model, d_inner_hid, dropout) for _ in range(n_layers)])
 
-        # Output head: BN -> FC(d_model, d_model, ReLU) -> Dropout -> FC(d_model, 1)
-        self.out_bn = nn.BatchNorm1d(d_model)
-        self.out_fc1 = nn.Linear(d_model, d_model)
-        self.out_fc2 = nn.Linear(d_model, 1)
-        self.out_dropout = nn.Dropout(dropout)
+        # Output head: single linear projection
+        self.out_head = nn.Linear(d_model, 1)
 
     def forward(self, itm_spar, itm_dens, seq_length):
         """
@@ -162,29 +159,9 @@ class PRMModel(nn.Module):
         seq_rep = item_seq * mask_3d
 
         # Output head
-        y_pred = self._output_head(seq_rep, key_mask)
-        return y_pred
+        out = self.out_head(seq_rep).squeeze(-1)  # (B, T)
 
-    def _output_head(self, seq_rep, seq_mask):
-        """
-        seq_rep: (B, T, d_model) — masked sequence representation
-        seq_mask: (B, T) — 1 for valid, 0 for padding
-
-        Returns: (B, T) softmax scores masked by seq_mask
-        """
-        B, T, C = seq_rep.size()
-        # BatchNorm: (B, T, C) -> (B*T, C) -> bn -> (B, T, C)
-        out = seq_rep.reshape(B * T, C)
-        out = self.out_bn(out)
-        out = out.view(B, T, C)
-
-        out = F.relu(self.out_fc1(out))
-        out = self.out_dropout(out)
-        out = self.out_fc2(out).squeeze(-1)  # (B, T)
-
-        # Softmax over list positions
+        # Softmax over list positions, then mask padding
         score = F.softmax(out, dim=-1)
-
-        # Mask padding positions
-        y_pred = score * seq_mask
+        y_pred = score * key_mask
         return y_pred

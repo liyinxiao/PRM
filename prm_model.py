@@ -38,14 +38,8 @@ class PRMModel(nn.Module):
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
-        # Output head: BN → FC(d_model) → ReLU → Dropout → FC(1) → softmax
-        self.out_head = nn.Sequential(
-            nn.BatchNorm1d(d_model),
-            nn.Linear(d_model, d_model),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_model, 1),
-        )
+        # Output head: single linear projection
+        self.out_head = nn.Linear(d_model, 1)
 
     def forward(self, itm_spar, itm_dens, seq_length):
         """
@@ -72,8 +66,8 @@ class PRMModel(nn.Module):
         # Transformer encoder
         item_seq = self.encoder(item_seq, src_key_padding_mask=pad_mask)  # (B, T, d_model)
 
-        # Output head (reshape for BatchNorm1d, then back)
-        out = self.out_head(item_seq.reshape(B * T, -1)).view(B, T)  # (B, T)
+        # Output head
+        out = self.out_head(item_seq).squeeze(-1)  # (B, T)
 
         # Softmax over positions, then mask padding
         score = F.softmax(out, dim=-1)
